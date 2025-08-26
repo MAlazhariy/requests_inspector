@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
+import 'package:requests_inspector/src/curl_command_generator.dart' show CurlCommandGenerator;
 import 'package:requests_inspector/src/shared_widgets/request_details_page.dart';
 import 'package:requests_inspector/src/shared_widgets/request_item.dart';
 import 'package:requests_inspector/src/shared_widgets/run_again_widget.dart';
@@ -389,30 +391,42 @@ class Inspector extends StatelessWidget {
           inspectorController.selectedTab == 1 &&
           inspectorController.selectedRequest != null,
       builder: (context, showShareButton, _) => showShareButton
-          ? FloatingActionButton(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.share),
-              onPressed: () async {
-                final box = context.findRenderObject() as RenderBox?;
+          ? GestureDetector(
+              onLongPress: () {
+                final curlCommandGenerator = CurlCommandGenerator(InspectorController().selectedRequest!);
+                final curl = curlCommandGenerator.generate();
+                // Copy curl to clipboard
+                Clipboard.setData(ClipboardData(text: curl));
 
-                final selectedRequest = InspectorController().selectedRequest!;
-                final isHttp = _isHttp(selectedRequest);
-
-                final shareType = isHttp
-                    ? await _showDialogShareType(context)
-                    : null;
-
-                if (shareType == null) return;
-
-                InspectorController().shareSelectedRequest(
-                  sharePositionOrigin: box == null
-                      ? null
-                      : box.localToGlobal(Offset.zero) & box.size,
-                  shareType: shareType,
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('cURL Copied to clipboard')),
                 );
               },
-            )
+              child: FloatingActionButton(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.share),
+                onPressed: () async {
+                  final box = context.findRenderObject() as RenderBox?;
+
+                  final selectedRequest = InspectorController().selectedRequest!;
+                  final isHttp = _isHttp(selectedRequest);
+
+                  final shareType = isHttp
+                      ? await _showDialogShareType(context)
+                      : null;
+
+                  if (shareType == null) return;
+
+                  InspectorController().shareSelectedRequest(
+                    sharePositionOrigin: box == null
+                        ? null
+                        : box.localToGlobal(Offset.zero) & box.size,
+                    shareType: shareType,
+                  );
+                },
+              ),
+          )
           : const SizedBox(),
     );
   }
